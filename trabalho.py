@@ -1,0 +1,13 @@
+print("========================================")
+print("CAMPEONATO INTERCLASSE DE E-SPORTS")
+print("========================================")
+print("1. Cadastrar jogador")
+print("2. Cadastrar equipe")
+print("3. Adicionar jogador a uma equipe")
+print("4. Listar todas as equipes")
+print("5. Listar jogadores de uma equipe")
+print("6. Buscar jogador por nickname")
+print("0. Sair")
+print("========================================")
+print("Escolha uma opção:")
+      
