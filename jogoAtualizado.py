@@ -9,6 +9,8 @@ VELOCIDADE_JOGADOR = 4
 QUANTIDADE_MOEDAS = 25
 PONTOS_MOEDA_ESPECIAL = 5
 PONTUACAO_MAXIMA = QUANTIDADE_MOEDAS + PONTOS_MOEDA_ESPECIAL
+GRAVIDADE = 0.5
+FORCA_PULO = 15
 
 
 def desenhar_texto_central(texto, altura, tamanho=18, cor=arcade.color.WHITE):
@@ -30,8 +32,6 @@ class Jogador(arcade.Sprite):
         self.textura_esquerda = arcade.load_texture("esquerda.png")
 
     def update(self, delta_time=1 / 60):
-        self.center_x += self.change_x
-        self.center_y += self.change_y
 
         if self.change_x > 0:
             self.texture = self.textura_direita
@@ -43,12 +43,6 @@ class Jogador(arcade.Sprite):
 
         if self.right > LARGURA:
             self.right = LARGURA
-
-        if self.bottom < 0:
-            self.bottom = 0
-
-        if self.top > ALTURA:
-            self.top = ALTURA
 
 
 class Moeda(arcade.Sprite):
@@ -192,7 +186,8 @@ class TelaInstrucoes(arcade.View):
             "O inimigo comum rebate nas paredes e tira 1 ponto.",
             "O goblin persegue o jogador.",
             "Depois da colisão, o goblin teletransporta.",
-            "Movimentação: teclas WASD ou setas direcionais.",
+            "Movimentação: teclas A/D ou setas direcionais.",
+            "Pressione ESPAÇO ou W para pular.",
         ]
 
         altura = 455
@@ -277,6 +272,11 @@ class TelaSobre(arcade.View):
             self.window.show_view(TelaMenu())
 
 
+class Plataforma(arcade.Sprite):
+    def __init__(self):
+        super().__init__("plataforma.png", scale=0.2)
+
+
 class TelaJogo(arcade.View):
 
     def __init__(self):
@@ -295,6 +295,10 @@ class TelaJogo(arcade.View):
         self.lista_inimigos = arcade.SpriteList()
         self.lista_inimigo_especial = arcade.SpriteList()
 
+        # ADICIONADO PARA A GRAVIDADE
+        self.lista_plataformas = arcade.SpriteList()
+        self.lista_paredes = arcade.SpriteList()
+
         # Jogador
         self.jogador = Jogador()
 
@@ -302,6 +306,43 @@ class TelaJogo(arcade.View):
         self.jogador.center_y = ALTURA / 2
 
         self.lista_jogador.append(self.jogador)
+
+        # ADICIONADO: chão
+        chao = arcade.SpriteSolidColor(
+            LARGURA,
+            30,
+            arcade.color.DARK_GREEN,
+        )
+
+        chao.center_x = LARGURA / 2
+        chao.center_y = 15
+
+        self.lista_paredes.append(chao)
+
+        # ADICIONADO: plataformas
+        plataformas = [
+            (170, 170),
+            (400, 250),
+            (650, 180),
+            (260, 400),
+            (560, 430),
+        ]
+
+        for x, y in plataformas:
+            plataforma = Plataforma()
+            plataforma.center_x = x
+            plataforma.center_y = y
+            self.lista_plataformas.append(plataforma)
+
+        # ADICIONADO: motor de física e gravidade
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.jogador,
+            walls=[
+                self.lista_paredes,
+                self.lista_plataformas
+            ],
+            gravity_constant=GRAVIDADE,
+        )
 
         # Moedas normais
         for i in range(QUANTIDADE_MOEDAS):
@@ -404,6 +445,10 @@ class TelaJogo(arcade.View):
 
         self.clear()
 
+        # ADICIONADO: desenhar plataformas e chão
+        self.lista_plataformas.draw()
+        self.lista_paredes.draw()
+
         self.lista_moedas.draw()
         self.lista_inimigos.draw()
         self.lista_inimigo_especial.draw()
@@ -438,10 +483,14 @@ class TelaJogo(arcade.View):
 
         self.tempo += delta_time
 
-        self.lista_jogador.update()
+        # NÃO atualizamos o jogador manualmente.
+        # O PhysicsEngine cuida da gravidade.
         self.lista_moedas.update()
         self.lista_inimigos.update()
         self.lista_inimigo_especial.update()
+
+        # ADICIONADO: gravidade e colisão com plataformas
+        self.physics_engine.update()
 
         # Tempo do alerta
         if self.tempo_alerta > 0:
@@ -518,31 +567,25 @@ class TelaJogo(arcade.View):
 
     def on_key_press(self, key, modifiers):
 
-        if key == arcade.key.UP or key == arcade.key.W:
-            self.jogador.change_y = VELOCIDADE_JOGADOR
+        if key == arcade.key.LEFT or key == arcade.key.A:
 
-        elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.jogador.change_y = -VELOCIDADE_JOGADOR
-
-        elif key == arcade.key.LEFT or key == arcade.key.A:
             self.jogador.change_x = -VELOCIDADE_JOGADOR
 
         elif key == arcade.key.RIGHT or key == arcade.key.D:
+
             self.jogador.change_x = VELOCIDADE_JOGADOR
 
+        # ADICIONADO: pulo
+        elif key == arcade.key.SPACE or key == arcade.key.W:
+
+            if self.physics_engine.can_jump():
+                self.jogador.change_y = FORCA_PULO
+
         elif key == arcade.key.ESCAPE:
+
             self.window.show_view(TelaMenu())
 
     def on_key_release(self, key, modifiers):
-
-        if key in [
-            arcade.key.UP,
-            arcade.key.DOWN,
-            arcade.key.W,
-            arcade.key.S
-        ]:
-
-            self.jogador.change_y = 0
 
         if key in [
             arcade.key.LEFT,
